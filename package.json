@@ -1,0 +1,35 @@
+{
+  "name": "@overlay-one/cli",
+  "version": "0.1.0",
+  "description": "Move files in and out of your Overlay brain, and search it, from a terminal.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/overlay-one/cli.git"
+  },
+  "homepage": "https://overlay.one",
+  "type": "module",
+  "bin": {
+    "overlay": "dist/overlay.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "dev": "node --experimental-strip-types src/index.ts",
+    "smoke": "node dist/overlay.js --help >/dev/null && node dist/overlay.js search --help >/dev/null && echo smoke-ok"
+  },
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0"
+  }
+}
