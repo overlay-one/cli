@@ -38,14 +38,16 @@ overlay files                        # recent file/image/webpage sources
 
 UX rules:
 
-- Human output is one line per thing (`id  kind  title/score`), wide
-  content truncated; `--json` is the machine contract and prints the raw
-  API payload untouched.
+- Human output is a numbered ledger (bold title, dim kind · age · match
+  line, wrapped snippet) with **no UUIDs** — ids belong to `--json`, which
+  prints the raw API payload untouched. Numbered rows persist to
+  `~/.config/overlay/last-results.json`, so `overlay download 3` resolves
+  row 3 of the last `search`/`files`/`upload` listing.
 - Exit codes: 0 ok, 1 API/network error, 2 usage error, 3 not logged in.
 - Errors go to stderr; data to stdout — `overlay search x --json | jq`
   must always work.
-- No spinners, no color requirements, no interactive prompts outside
-  `login`. Pipes are the primary audience.
+- Color via picocolors (auto-disabled for pipes/NO_COLOR); no spinners,
+  no interactive prompts outside `login`. Pipes are the primary audience.
 
 ## Auth
 

@@ -13,11 +13,13 @@ overlay upload paper.pdf notes.md      # into your brain
 cat journal.md | overlay upload - --name journal.md
 overlay search "prompt caching"        # hybrid search over everything
 overlay files                          # recent sources
-overlay download <node-id> --annotated # PDFs come back with your highlights
+overlay download 2 --annotated        # row 2 of the last listing; PDFs keep your highlights
 ```
 
-Pipes are the point: `--json` on every read command, data on stdout,
-messages on stderr.
+Human output is a numbered ledger — titles, kinds, ages; no UUIDs.
+`overlay download <number>` resolves rows from the last listing. For
+scripting, `--json` prints raw API payloads (ids included), data on
+stdout, messages on stderr.
 
 ```sh
 overlay search "RAG decoding" --json | jq -r '.results[].node.id'

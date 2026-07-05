@@ -8,6 +8,9 @@ dependencies:
   commander:
     specifier: ^14.0.0
     version: 14.0.3
+  picocolors:
+    specifier: ^1.1.1
+    version: 1.1.1
 
 devDependencies:
   '@types/node':
@@ -671,7 +674,6 @@ packages:
 
   /picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
-    dev: true
 
   /picomatch@4.0.5:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}

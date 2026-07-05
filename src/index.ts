@@ -62,8 +62,8 @@ program
 
 program
   .command("download")
-  .description("Fetch a stored file by node id")
-  .argument("<node-id>")
+  .description("Fetch a stored file by result number or node id")
+  .argument("<ref>", "a number from the last search/files listing, or a node id")
   .option("-o, --output <path>", "write here instead of the original filename")
   .option("--annotated", "PDFs: bake your sticky highlights into the file")
   .action(run(commandDownload));

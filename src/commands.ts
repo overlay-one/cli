@@ -1,26 +1,28 @@
-// The five verbs (DESIGN.md §Commands). Data to stdout, errors to stderr,
-// --json prints raw API payloads untouched so pipes always work.
+// The five verbs (DESIGN.md §Commands). Human output is a numbered ledger —
+// no UUIDs; ids live in --json, and numbered rows resolve via the result
+// cache (`overlay download 3`). Data to stdout, messages to stderr.
 
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
+import pc from "picocolors";
+
 import { ApiError, apiFetch, apiJson } from "./api.js";
 import {
+  apiBaseUrl,
   clearCredentials,
   loadCredentials,
   login,
   tokenEmail,
-  apiBaseUrl,
 } from "./auth.js";
-
-type BrainNode = {
-  id: string;
-  kind?: string;
-  content?: string;
-  status?: string;
-  created_at?: string;
-  payload?: Record<string, unknown>;
-};
+import {
+  humanBytes,
+  nodeTitle,
+  printRow,
+  rememberResults,
+  resolveNodeRef,
+  type BrainNode,
+} from "./render.js";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -40,19 +42,6 @@ function mimeFor(filename: string): string {
   return MIME_BY_EXTENSION[extname(filename).toLowerCase()] ?? "application/octet-stream";
 }
 
-function nodeTitle(node: BrainNode): string {
-  const payload = node.payload ?? {};
-  const candidate =
-    payload["title"] ?? payload["original_name"] ?? payload["filename"] ?? node.content;
-  const text = typeof candidate === "string" ? candidate : "";
-  return text.trim().replace(/\s+/g, " ").slice(0, 80) || "(untitled)";
-}
-
-function printNodeLine(node: BrainNode, extra = ""): void {
-  const kind = (node.kind ?? "node").padEnd(12);
-  process.stdout.write(`${node.id}  ${kind}  ${nodeTitle(node)}${extra}\n`);
-}
-
 async function readStdin(): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
@@ -64,7 +53,7 @@ async function readStdin(): Promise<Buffer> {
 export async function commandLogin(): Promise<void> {
   const credentials = await login();
   const email = tokenEmail(credentials.access_token);
-  process.stderr.write(`Logged in${email ? ` as ${email}` : ""}.\n`);
+  process.stderr.write(pc.green(`Logged in${email ? ` as ${email}` : ""}.\n`));
 }
 
 export async function commandLogout(): Promise<void> {
@@ -80,7 +69,7 @@ export async function commandWhoami(): Promise<void> {
     return;
   }
   const email = tokenEmail(credentials.access_token);
-  process.stdout.write(`${email ?? "(unknown)"}  ${apiBaseUrl()}\n`);
+  process.stdout.write(`${pc.bold(email ?? "(unknown)")} ${pc.dim(`· ${apiBaseUrl()}`)}\n`);
 }
 
 // --- upload ---
@@ -94,7 +83,7 @@ export async function commandUpload(
     throw new Error("Reading stdin requires --name <filename>.");
   }
 
-  const created: unknown[] = [];
+  const created: Array<{ node: BrainNode }> = [];
   for (const path of paths) {
     const fromStdin = path === "-";
     const bytes = fromStdin ? await readStdin() : await readFile(path);
@@ -114,19 +103,29 @@ export async function commandUpload(
       body: form,
     });
     created.push(result);
-    if (!options.json) printNodeLine(result.node);
+    if (!options.json) {
+      process.stdout.write(
+        `${pc.green("✓")} ${pc.bold(nodeTitle(result.node))} ${pc.dim(
+          `· ${result.node.kind ?? "file"} · ${humanBytes(bytes.length)}`,
+        )}\n`,
+      );
+    }
   }
+  await rememberResults(created.map((item) => item.node));
   if (options.json) {
     process.stdout.write(JSON.stringify(created.length === 1 ? created[0] : created) + "\n");
+  } else if (created.length > 0) {
+    process.stderr.write(pc.dim(`download with: overlay download 1\n`));
   }
 }
 
 // --- download ---
 
 export async function commandDownload(
-  nodeId: string,
+  nodeRef: string,
   options: { output?: string; annotated?: boolean },
 ): Promise<void> {
+  const nodeId = await resolveNodeRef(nodeRef);
   const encoded = encodeURIComponent(nodeId);
   let output = options.output;
   if (!output) {
@@ -138,7 +137,7 @@ export async function commandDownload(
   const bytes = Buffer.from(await response.arrayBuffer());
   await writeFile(output, bytes);
   process.stdout.write(`${output}\n`);
-  process.stderr.write(`${bytes.length} bytes\n`);
+  process.stderr.write(pc.dim(`${pc.green("✓")} ${humanBytes(bytes.length)}\n`));
 }
 
 // --- search ---
@@ -169,10 +168,14 @@ export async function commandSearch(
     process.stderr.write("No matches.\n");
     return;
   }
-  for (const hit of result.results) {
-    const snippet = hit.snippet?.trim().replace(/\s+/g, " ").slice(0, 100);
-    printNodeLine(hit.node, `  (${hit.score.toFixed(2)})${snippet ? `\n    ${snippet}` : ""}`);
-  }
+  process.stdout.write("\n");
+  result.results.forEach((hit, index) => {
+    printRow(index + 1, hit.node, { snippet: hit.snippet ?? hit.node.content });
+  });
+  await rememberResults(result.results.map((hit) => hit.node));
+  process.stderr.write(
+    pc.dim(`open one with: overlay download <number> · ids: --json\n`),
+  );
 }
 
 // --- files ---
@@ -196,8 +199,16 @@ export async function commandFiles(options: {
     process.stderr.write("No files yet — `overlay upload <file>` starts the library.\n");
     return;
   }
-  for (const node of result.nodes) printNodeLine(node);
-  process.stderr.write(`${result.nodes.length} of ${result.total}\n`);
+  process.stdout.write("\n");
+  result.nodes.forEach((node, index) => {
+    printRow(index + 1, node);
+  });
+  await rememberResults(result.nodes);
+  process.stderr.write(
+    pc.dim(
+      `${result.nodes.length} of ${result.total} · download with: overlay download <number>\n`,
+    ),
+  );
 }
 
 export { ApiError };
