@@ -40,7 +40,12 @@ overlay prompt "Summarize this paper" --context "I have the PDF and 30 minutes"
 overlay prompt --full < draft.txt      # all four sections as Markdown
 overlay prompt list                    # saved prompts from overlay.one/prompts
 overlay prompt show 2 | overlay prompt # optimize a saved prompt
+overlay prompt pick | pbcopy           # fuzzy-pick a saved prompt, copy its content
 ```
+
+While a command waits on the network, the Overlay mark animates on
+stderr with the elapsed time. Set `OVERLAY_NO_ANIMATION=1` (or `NO_COLOR`)
+to turn it off; it is always off in pipes and CI.
 
 ### With fzf
 

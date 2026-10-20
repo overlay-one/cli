@@ -1,10 +1,11 @@
 // `overlay prompt` — rewrite a prompt so it asks for more ambitious work.
 // The rewritten prompt goes to stdout so `pbpaste | overlay prompt | pbcopy`
-// works; the diagnosis and ladder go to stderr.
+// works; the animation, diagnosis and ladder go to stderr.
 
 import pc from "picocolors";
 
 import { ApiError, apiFetch } from "./api.js";
+import { heading, renderMarkdown, rule, seconds, terminalWidth, withActivity } from "./ui.js";
 
 type OptimizerResult = {
   structured: boolean;
@@ -34,6 +35,20 @@ async function readPrompt(words: string[]): Promise<string> {
   return readStdin();
 }
 
+async function optimize(prompt: string, context: string): Promise<OptimizerResult> {
+  const response = await apiFetch("/api/prompts/optimize", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ content: prompt, context }),
+  });
+  // The route streams heartbeat spaces before its JSON, so the status is always 200.
+  const body = (await response.json()) as OptimizerResponse;
+  if (body.success !== true || !body.data) {
+    throw new ApiError(body.error?.message ?? "Could not optimize the prompt.", 502);
+  }
+  return body.data;
+}
+
 function fullMarkdown(result: OptimizerResult): string {
   if (!result.structured) return result.raw;
   return [
@@ -45,45 +60,53 @@ function fullMarkdown(result: OptimizerResult): string {
 }
 
 function printNotes(result: OptimizerResult): void {
+  const width = terminalWidth() - 2;
   const notes: Array<[string, string]> = [
     ["Diagnosis", result.sections.diagnosis],
     ["Ladder", result.sections.ladder],
     ["Deferred", result.sections.deferred],
   ];
   for (const [label, body] of notes) {
-    if (body) process.stderr.write(`${pc.bold(label)}\n${pc.dim(body)}\n\n`);
+    if (body) process.stderr.write(`\n${heading(label)}\n${renderMarkdown(body, width)}\n`);
   }
+  process.stderr.write("\n");
 }
 
+function printRewritten(text: string): void {
+  if (!process.stdout.isTTY) {
+    process.stdout.write(text + "\n");
+    return;
+  }
+  process.stdout.write(`${rule("Rewritten prompt")}\n${text}\n${rule()}\n`);
+  process.stderr.write(pc.dim("copy it: … | overlay prompt | pbcopy · all sections: --full\n"));
+}
+
+const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
 export async function commandPrompt(
-  words: string[],
+  argWords: string[],
   options: { context?: string; full?: boolean; json?: boolean; quiet?: boolean },
 ): Promise<void> {
-  const prompt = (await readPrompt(words)).trim();
+  const prompt = (await readPrompt(argWords)).trim();
   if (!prompt) {
     process.exitCode = 2;
     throw new Error("The prompt is empty.");
   }
 
-  if (!options.quiet) process.stderr.write(pc.dim("Optimizing… this can take up to two minutes.\n"));
-  const response = await apiFetch("/api/prompts/optimize", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content: prompt, context: options.context ?? "" }),
+  const result = await withActivity("Optimizing", () => optimize(prompt, options.context ?? ""), {
+    stderrOnly: true,
+    fallback: options.quiet ? undefined : "Optimizing… this can take up to two minutes.",
+    done: (optimized, ms) =>
+      optimized.rewritten ? `Rewritten in ${seconds(ms)} · ${words(optimized.rewritten)} words` : `Done in ${seconds(ms)}`,
   });
-  // The route streams heartbeat spaces before its JSON, so the status is always 200.
-  const body = (await response.json()) as OptimizerResponse;
-  if (body.success !== true || !body.data) {
-    throw new ApiError(body.error?.message ?? "Could not optimize the prompt.", 502);
-  }
-  const result = body.data;
 
   if (options.json) {
     process.stdout.write(JSON.stringify(result) + "\n");
     return;
   }
   if (options.full) {
-    process.stdout.write(fullMarkdown(result) + "\n");
+    const markdown = fullMarkdown(result);
+    process.stdout.write((process.stdout.isTTY ? renderMarkdown(markdown, terminalWidth() - 2) : markdown) + "\n");
     return;
   }
   if (!result.rewritten) {
@@ -91,6 +114,6 @@ export async function commandPrompt(
     process.stdout.write(result.raw + "\n");
     return;
   }
-  if (!options.quiet) printNotes(result);
-  process.stdout.write(result.rewritten + "\n");
+  if (!options.quiet && process.stderr.isTTY) printNotes(result);
+  printRewritten(result.rewritten);
 }

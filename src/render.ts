@@ -6,7 +6,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import pc from "picocolors";
+import { ledgerRow } from "./ui.js";
 
 export type BrainNode = {
   id: string;
@@ -20,20 +20,12 @@ export type BrainNode = {
 const CONFIG_DIR = join(homedir(), ".config", "overlay");
 const RESULTS_PATH = join(CONFIG_DIR, "last-results.json");
 
-export function terminalWidth(): number {
-  return Math.min(process.stdout.columns || 100, 110);
-}
-
 export function nodeTitle(node: BrainNode): string {
   const payload = node.payload ?? {};
   const candidate =
     payload["title"] ?? payload["original_name"] ?? payload["filename"] ?? node.content;
   const text = typeof candidate === "string" ? candidate : "";
   return text.trim().replace(/\s+/g, " ") || "(untitled)";
-}
-
-export function truncate(text: string, width: number): string {
-  return text.length <= width ? text : `${text.slice(0, Math.max(0, width - 1))}…`;
 }
 
 export function relativeTime(iso: string | undefined): string | null {
@@ -67,30 +59,21 @@ export function humanBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
 }
 
-/** One ledger row: numbered, bold title, dim meta line, optional snippet. */
+/** One ledger row: numbered, bold title, right-aligned dim meta, optional snippet. */
 export function printRow(
   index: number,
   node: BrainNode,
   options: { score?: number; snippet?: string | null } = {},
 ): void {
-  const width = terminalWidth();
-  const number = pc.cyan(String(index).padStart(2));
-  const title = pc.bold(truncate(nodeTitle(node), width - 5));
-
+  const title = nodeTitle(node);
   const meta: string[] = [node.kind ?? "node"];
   const when = relativeTime(node.created_at);
   if (when) meta.push(when);
   if (options.score !== undefined) meta.push(`match ${(options.score * 100).toFixed(0)}%`);
-
-  process.stdout.write(`${number}  ${title}\n`);
-  process.stdout.write(`    ${pc.dim(meta.join(" · "))}\n`);
-
   const snippet = options.snippet?.trim().replace(/\s+/g, " ");
   // Don't echo the title back as its own snippet.
-  if (snippet && !nodeTitle(node).startsWith(truncate(snippet, 40))) {
-    process.stdout.write(`    ${pc.dim(truncate(snippet, width - 4))}\n`);
-  }
-  process.stdout.write("\n");
+  const keep = snippet && !title.startsWith(snippet.slice(0, 40)) ? snippet : undefined;
+  process.stdout.write(ledgerRow({ index, title, meta, snippet: keep }) + "\n");
 }
 
 // --- result cache: numbered rows → node ids for follow-up commands ---

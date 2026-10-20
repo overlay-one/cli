@@ -1,7 +1,8 @@
-// overlay — move files in and out of your Overlay brain, and search it.
+// overlay — move files in and out of your Overlay memory, search it, and work with prompts.
 // Design: DESIGN.md. Exit codes: 0 ok, 1 API/network, 2 usage, 3 not logged in.
 
 import { Command } from "commander";
+import pc from "picocolors";
 
 import { NotLoggedInError } from "./auth.js";
 import {
@@ -15,12 +16,27 @@ import {
   commandWhoami,
 } from "./commands.js";
 import { commandPrompt } from "./prompt.js";
-import { commandPromptList, commandPromptShow } from "./prompt-library.js";
+import { commandPromptList, commandPromptPick, commandPromptShow } from "./prompt-library.js";
+import { markFrame, symbols } from "./ui.js";
 
 const program = new Command("overlay")
-  .description("Your Overlay memory from the terminal: upload, download, search, prompt.")
+  .description("Move files in and out of your memory, search it, and work with prompts.")
   .version("0.2.0")
-  .configureOutput({ writeErr: (text) => process.stderr.write(text) });
+  .configureOutput({
+    writeErr: (text) => process.stderr.write(text),
+    outputError: (text, write) => write(`${symbols.fail()} ${text.replace(/^error: /, "")}`),
+  })
+  .addHelpText("beforeAll", `\n${markFrame(0)}  ${pc.bold("overlay")} ${pc.dim("· your memory in the terminal")}\n`)
+  .addHelpText(
+    "after",
+    `
+Examples:
+  ${pc.cyan("overlay search")} "prompt caching"           search everything you saved
+  ${pc.cyan("pbpaste | overlay prompt | pbcopy")}         rewrite a prompt in place
+  ${pc.cyan("overlay prompt pick | pbcopy")}              copy a saved prompt
+
+Docs: https://github.com/overlay-one/cli`,
+  );
 
 function run(action: (...args: never[]) => Promise<void>) {
   return async (...args: unknown[]) => {
@@ -28,35 +44,21 @@ function run(action: (...args: never[]) => Promise<void>) {
       await (action as (...a: unknown[]) => Promise<void>)(...args);
     } catch (error) {
       if (error instanceof NotLoggedInError) {
-        process.stderr.write(`${error.message}\n`);
+        process.stderr.write(`${symbols.fail()} Not logged in\n${pc.dim("  run: overlay login  (or set OVERLAY_TOKEN)")}\n`);
         process.exitCode = 3;
         return;
       }
       const message = error instanceof Error ? error.message : String(error);
-      process.stderr.write(`error: ${message}\n`);
+      process.stderr.write(`${symbols.fail()} ${message}\n`);
       process.exitCode = error instanceof ApiError ? 1 : (process.exitCode ?? 1);
     }
   };
 }
 
 program
-  .command("login")
-  .description("Authorize this machine via the browser")
-  .action(run(commandLogin));
-
-program
-  .command("logout")
-  .description("Forget the stored credentials")
-  .action(run(commandLogout));
-
-program
-  .command("whoami")
-  .description("Show the logged-in account and API host")
-  .action(run(commandWhoami));
-
-program
   .command("upload")
-  .description("Ingest files into your brain ('-' reads stdin)")
+  .helpGroup("Memory:")
+  .description("Save files to your memory ('-' reads stdin)")
   .argument("<file...>", "paths to upload, or - for stdin")
   .option("--name <filename>", "stored filename (required with -)")
   .option("--json", "print the created node(s) as JSON")
@@ -64,6 +66,7 @@ program
 
 program
   .command("download")
+  .helpGroup("Memory:")
   .description("Fetch a stored file by result number or node id")
   .argument("<ref>", "a number from the last search/files listing, or a node id")
   .option("-o, --output <path>", "write here instead of the original filename")
@@ -72,7 +75,8 @@ program
 
 program
   .command("search")
-  .description("Hybrid search over everything you have saved")
+  .helpGroup("Memory:")
+  .description("Search everything you have saved")
   .argument("<query>")
   .option("--kinds <kinds>", "comma-separated kind filter (file,note,webpage,…)")
   .option("--limit <n>", "max results", "10")
@@ -81,6 +85,7 @@ program
 
 program
   .command("files")
+  .helpGroup("Memory:")
   .description("List recent file, image, and webpage sources")
   .option("--kinds <kinds>", "comma-separated kinds", "file,image,webpage")
   .option("--limit <n>", "max results", "30")
@@ -89,7 +94,8 @@ program
 
 const prompt = program
   .command("prompt")
-  .description("Optimize a prompt (default), or list and show your saved prompts");
+  .helpGroup("Prompts:")
+  .description("Optimize a prompt; list, show, or pick saved ones");
 
 prompt
   .command("optimize", { isDefault: true })
@@ -116,6 +122,31 @@ prompt
   .argument("<ref>", "a number from the last prompt list, or a prompt id")
   .option("--json", "print the raw prompt record")
   .action(run(commandPromptShow));
+
+prompt
+  .command("pick")
+  .description("Fuzzy-pick a saved prompt and print its content")
+  .option("--all", "include public prompts from other people")
+  .option("--json", "print the raw prompt record")
+  .action(run(commandPromptPick));
+
+program
+  .command("login")
+  .helpGroup("Account:")
+  .description("Authorize this machine via the browser")
+  .action(run(commandLogin));
+
+program
+  .command("logout")
+  .helpGroup("Account:")
+  .description("Forget the stored credentials")
+  .action(run(commandLogout));
+
+program
+  .command("whoami")
+  .helpGroup("Account:")
+  .description("Show the logged-in account and API host")
+  .action(run(commandWhoami));
 
 program.parseAsync().catch(() => {
   process.exitCode = 2;
