@@ -3,7 +3,8 @@
 One tool, one job: **move files in and out of the brain, and search it,
 from a terminal.** Not a staged v0 of something bigger — chat, export
 tooling, and objectives are explicitly out of scope; if they ever matter
-they are separate proposals.
+they are separate proposals. The one addition is `overlay prompt`, the
+web Prompts optimizer as a pipe filter (`pbpaste | overlay prompt | pbcopy`).
 
 The CLI is a fourth client (web, extension, iOS, **cli**) speaking the
 same Bearer-token API the extension and iOS already use. Zero agent
@@ -29,6 +30,12 @@ overlay search <query>               # hybrid search over the whole brain
     --kinds file,note,webpage        # optional kind filter
     --limit 10
     --json
+
+overlay prompt [text...]             # optimize a prompt; stdin when no text
+    --context <text>                 # access, limits, audience
+    --full                           # all sections as Markdown on stdout
+    --json                           # raw optimizer response
+    -q, --quiet                      # only the rewritten prompt
 
 overlay files                        # recent file/image/webpage sources
     --kinds file,image,webpage

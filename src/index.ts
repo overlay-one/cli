@@ -14,10 +14,11 @@ import {
   commandUpload,
   commandWhoami,
 } from "./commands.js";
+import { commandPrompt } from "./prompt.js";
 
 const program = new Command("overlay")
-  .description("Your Overlay memory from the terminal: upload, download, search.")
-  .version("0.1.0")
+  .description("Your Overlay memory from the terminal: upload, download, search, prompt.")
+  .version("0.2.0")
   .configureOutput({ writeErr: (text) => process.stderr.write(text) });
 
 function run(action: (...args: never[]) => Promise<void>) {
@@ -84,6 +85,16 @@ program
   .option("--limit <n>", "max results", "30")
   .option("--json", "print the raw list response")
   .action(run(commandFiles));
+
+program
+  .command("prompt")
+  .description("Rewrite a prompt to ask for more ambitious work (reads stdin)")
+  .argument("[prompt...]", "the prompt text, or - / nothing to read stdin")
+  .option("--context <text>", "what the model can access, limits, who the result is for")
+  .option("--full", "print diagnosis, ladder, rewrite, and deferred line as Markdown")
+  .option("--json", "print the raw optimizer response")
+  .option("-q, --quiet", "print only the rewritten prompt")
+  .action(run(commandPrompt));
 
 program.parseAsync().catch(() => {
   process.exitCode = 2;

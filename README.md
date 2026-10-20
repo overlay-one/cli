@@ -14,6 +14,7 @@ cat journal.md | overlay upload - --name journal.md
 overlay search "prompt caching"        # hybrid search over everything
 overlay files                          # recent sources
 overlay download 2 --annotated        # row 2 of the last listing; PDFs keep your highlights
+pbpaste | overlay prompt | pbcopy      # rewrite a prompt to ask for more ambitious work
 ```
 
 Human output is a numbered ledger — titles, kinds, ages; no UUIDs.
@@ -23,6 +24,19 @@ stdout, messages on stderr.
 
 ```sh
 overlay search "RAG decoding" --json | jq -r '.results[].node.id'
+```
+
+## Prompt optimizer
+
+`overlay prompt` sends a prompt through the same optimizer as the web
+Prompts editor. The rewritten prompt goes to stdout; the diagnosis,
+ladder, and deferred line go to stderr, so pipes get only the prompt.
+It runs on Overlay's Pro model and can take up to two minutes.
+
+```sh
+pbpaste | overlay prompt | pbcopy
+overlay prompt "Summarize this paper" --context "I have the PDF and 30 minutes"
+overlay prompt --full < draft.txt      # all four sections as Markdown
 ```
 
 ## Auth
