@@ -80,8 +80,10 @@ UX rules:
   only, and only when stderr (and, except for `prompt`, stdout) is a
   terminal; off under `CI`, `NO_COLOR`, `OVERLAY_NO_ANIMATION`, or
   `TERM=dumb`. No progress percentages that aren't measured.
-- Interactive prompts only in `login` and `prompt pick` (@inquirer/search,
-  drawn on stderr so stdout stays data).
+- Interactive prompts only in `login` and the `pick` commands
+  (@inquirer/search, drawn on stderr so stdout stays data).
+  `OVERLAY_PICKER=fzf` swaps in fzf with a `show` preview pane; when fzf is
+  missing, pick falls back to the built-in picker with a one-line notice.
 - Titles are OSC 8 hyperlinks (terminal-link) where the terminal supports
   them, using the web app's own routes; `open <n>` covers every terminal.
 - Layout is column-correct (string-width, wrap-ansi) so CJK, Thai, and

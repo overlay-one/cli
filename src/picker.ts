@@ -5,7 +5,8 @@
 import search from "@inquirer/search";
 import pc from "picocolors";
 
-import { symbols, terminalWidth, truncateToWidth } from "./ui.js";
+import { fzfArgs, previewCommand, runFzf, wantsFzf } from "./fzf.js";
+import { symbols, terminalWidth, truncateToWidth, tsvLine } from "./ui.js";
 
 export type PickItem = {
   value: string;
@@ -24,8 +25,42 @@ export function requirePickerTerminal(listCommand: string): void {
   throw new Error(`pick needs a terminal. In scripts use: ${listCommand} | fzf`);
 }
 
-/** Fuzzy-pick one item; returns its value, or null when the user pressed Ctrl-C. */
-export async function pickOne(message: string, items: PickItem[]): Promise<string | null> {
+type PickOptions = {
+  /** Plain label, e.g. "Pick a note". */
+  label: string;
+  /** Dim detail after the label in the built-in picker, e.g. "155 · 0.6s". */
+  detail: string;
+  /** `show` subcommand for fzf's preview pane, e.g. ["note", "show"]. */
+  showArgs: string[];
+};
+
+/**
+ * Fuzzy-pick one item; returns its value, or null when the user cancelled.
+ * OVERLAY_PICKER=fzf uses fzf (falling back here when it isn't installed).
+ */
+export async function pickOne(options: PickOptions, items: PickItem[]): Promise<string | null> {
+  if (wantsFzf()) {
+    const picked = await pickWithFzf(options, items);
+    if (picked !== undefined) return picked;
+    process.stderr.write(pc.dim("OVERLAY_PICKER=fzf, but fzf isn't installed; using the built-in picker.\n"));
+  }
+  return pickBuiltin(`${options.label} ${pc.dim(`· ${options.detail}`)}`, items);
+}
+
+/** undefined when fzf is missing, so the caller can fall back. */
+async function pickWithFzf(options: PickOptions, items: PickItem[]): Promise<string | null | undefined> {
+  const lines = items.map((item) => tsvLine([item.value, `${item.starred ? "★ " : ""}${item.title}`, item.description]));
+  const preview = previewCommand(process.execPath, process.argv[1] ?? "overlay", options.showArgs);
+  const outcome = await runFzf(lines, fzfArgs(options.label, preview));
+  if (outcome.status === "missing") return undefined;
+  if (outcome.status === "cancelled") {
+    process.exitCode = 130;
+    return null;
+  }
+  return outcome.line.split("\t")[0] ?? null;
+}
+
+async function pickBuiltin(message: string, items: PickItem[]): Promise<string | null> {
   const width = terminalWidth();
   const searchable = items.map((item) => ({
     item,

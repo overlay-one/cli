@@ -187,7 +187,7 @@ export async function commandNotePick(options: { archived?: boolean; json?: bool
     return;
   }
   const picked = await pickOne(
-    `Pick a note ${pc.dim(`· ${notes.length} · ${seconds(Date.now() - started)}`)}`,
+    { label: "Pick a note", detail: `${notes.length} · ${seconds(Date.now() - started)}`, showArgs: ["note", "show"] },
     notes.map((note) => ({
       value: note.id,
       title: noteTitle(note),

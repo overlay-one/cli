@@ -148,7 +148,7 @@ export async function commandPromptPick(options: { all?: boolean; json?: boolean
     return;
   }
   const picked = await pickOne(
-    `Pick a prompt ${pc.dim(`· ${prompts.length} · ${seconds(Date.now() - started)}`)}`,
+    { label: "Pick a prompt", detail: `${prompts.length} · ${seconds(Date.now() - started)}`, showArgs: ["prompt", "show"] },
     prompts.map((prompt) => ({
       value: prompt.prompt_id,
       title: prompt.title,

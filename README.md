@@ -81,6 +81,9 @@ overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
 # notes work the same way
 overlay note list | fzf --delimiter '\t' --with-nth 2.. --preview 'overlay note show {1}'
 
+# or make every `pick` use fzf (add to ~/.zshrc); previews show the content
+export OVERLAY_PICKER=fzf
+
 # or bind it as a shell function (add to ~/.zshrc)
 op() {
   local id
