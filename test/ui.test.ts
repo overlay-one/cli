@@ -4,7 +4,7 @@ import { stripVTControlCharacters } from "node:util";
 
 import stringWidth from "string-width";
 
-import { formatElapsed, markFrame, renderMarkdown, truncateToWidth } from "../src/ui.ts";
+import { detailView, formatElapsed, markFrame, renderMarkdown, truncateToWidth, tsvLine } from "../src/ui.ts";
 
 test("truncateToWidth leaves short text alone", () => {
   assert.equal(truncateToWidth("short", 10), "short");
@@ -60,4 +60,23 @@ test("renderMarkdown wraps long list items with a hanging indent", () => {
   assert.ok(lines.every((line) => stringWidth(line) <= 50), lines.map((line) => stringWidth(line)).join(","));
   const bulletIndent = (lines[0] ?? "").indexOf("·");
   assert.ok((lines[1] ?? "").startsWith(" ".repeat(bulletIndent + 2)));
+});
+
+test("tsvLine joins fields with tabs and flattens tabs and newlines inside them", () => {
+  assert.equal(tsvLine(["id-1", "Title\twith tab", "line one\nline two", null]), "id-1\tTitle with tab\tline one line two\t");
+});
+
+test("tsvLine caps a field at the given length", () => {
+  assert.equal(tsvLine(["x".repeat(10)], 4), "xxxx");
+});
+
+test("detailView frames the body between rules under a title and meta line", () => {
+  const lines = stripVTControlCharacters(
+    detailView({ title: "Extract insights", meta: ["analysis", "May 17"], body: "the body" }, 60, { color: false }),
+  ).split("\n");
+  assert.match(lines[0] ?? "", /^Extract insights\s+analysis · May 17$/);
+  assert.ok(stringWidth(lines[0] ?? "") <= 60);
+  assert.match(lines[1] ?? "", /^─+$/);
+  assert.equal(lines[2], "the body");
+  assert.match(lines[3] ?? "", /^─+$/);
 });

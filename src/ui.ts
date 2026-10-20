@@ -140,6 +140,26 @@ export function ledgerRow(row: { index: number; title: string; meta: string[]; s
   return lines.join("\n") + "\n";
 }
 
+/** One record per line for fzf and other line tools: tab-joined, inner whitespace flattened. */
+export function tsvLine(fields: Array<string | null | undefined>, maxFieldLength = 200): string {
+  return fields.map((field) => (field ?? "").replace(/\s+/g, " ").trim().slice(0, maxFieldLength)).join("\t");
+}
+
+/** A `show` view: bold title with right-aligned dim meta, then the body between thin rules. */
+export function detailView(
+  view: { title: string; meta: string[]; body: string },
+  width = terminalWidth(),
+  options: ColorOption = {},
+): string {
+  const c = colorsFor(options);
+  const meta = view.meta.join(" · ");
+  const title = truncateToWidth(view.title || "(untitled)", Math.max(12, width - (meta ? stringWidth(meta) + 2 : 0)));
+  const gap = Math.max(2, width - stringWidth(title) - stringWidth(meta));
+  const line = c.dim("─".repeat(width));
+  const header = `${c.bold(title)}${meta ? " ".repeat(gap) + c.dim(meta) : ""}`;
+  return [header, line, view.body.replace(/\s+$/, ""), line].join("\n");
+}
+
 export function formatElapsed(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -170,6 +190,8 @@ type ActivityOptions<T> = {
   fallback?: string;
   /** Summary line that replaces the animation on success. */
   done?: (result: T, elapsedMs: number) => string | undefined;
+  /** Print the summary even when the animation is off (confirmations for writes). */
+  doneAlways?: boolean;
 };
 
 /** Run `work` under the mark animation, showing elapsed time once it passes 1.5s. */
@@ -192,6 +214,7 @@ export async function withActivity<T>(label: string, work: () => Promise<T>, opt
     const summary = options.done?.(result, Date.now() - started);
     if (summary && enabled) spinner.stopAndPersist({ symbol: symbols.ok(), text: summary, suffixText: "" });
     else spinner.stop();
+    if (summary && !enabled && options.doneAlways) process.stderr.write(`${symbols.ok()} ${summary}\n`);
     return result;
   } catch (error) {
     spinner.stop();

@@ -7,12 +7,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import search from "@inquirer/search";
 import pc from "picocolors";
 
 import { apiJson } from "./api.js";
 import { relativeTime } from "./render.js";
-import { ledgerRow, listHeader, seconds, symbols, terminalWidth, truncateToWidth, withActivity } from "./ui.js";
+import { pickOne, requirePickerTerminal } from "./picker.js";
+import { detailView, ledgerRow, listHeader, seconds, tsvLine, withActivity } from "./ui.js";
 
 type SavedPrompt = {
   prompt_id: string;
@@ -73,9 +73,8 @@ function metaFor(prompt: SavedPrompt): string[] {
 }
 
 // One prompt per line, tab-separated: id, title, category, preview.
-function tsvLine(prompt: SavedPrompt): string {
-  const preview = flat(prompt.description || prompt.content).slice(0, 200);
-  return [prompt.prompt_id, flat(prompt.title) || "(untitled)", flat(prompt.category), preview].join("\t");
+function promptTsv(prompt: SavedPrompt): string {
+  return tsvLine([prompt.prompt_id, flat(prompt.title) || "(untitled)", prompt.category, prompt.description || prompt.content]);
 }
 
 export async function commandPromptList(options: {
@@ -93,7 +92,7 @@ export async function commandPromptList(options: {
     return;
   }
   if (options.tsv || !process.stdout.isTTY) {
-    for (const prompt of prompts) process.stdout.write(tsvLine(prompt) + "\n");
+    for (const prompt of prompts) process.stdout.write(promptTsv(prompt) + "\n");
     await rememberPrompts(prompts);
     return;
   }
@@ -111,64 +110,50 @@ export async function commandPromptList(options: {
   process.stderr.write(pc.dim(`show one: overlay prompt show <number> · pick: overlay prompt pick\n`));
 }
 
-async function printPrompt(promptId: string, json?: boolean): Promise<void> {
-  const result = await apiJson<{ prompt: SavedPrompt }>(`/api/prompts/${encodeURIComponent(promptId)}`);
+async function printPrompt(ref: string, promptId: string, json?: boolean): Promise<void> {
+  const result = await withActivity("Loading prompt", () =>
+    apiJson<{ prompt: SavedPrompt }>(`/api/prompts/${encodeURIComponent(promptId)}`),
+  );
+  const { prompt } = result;
   if (json) {
     process.stdout.write(JSON.stringify(result) + "\n");
     return;
   }
-  if (process.stderr.isTTY) process.stderr.write(pc.dim(`${result.prompt.title}\n`));
-  process.stdout.write(result.prompt.content.trimEnd() + "\n");
+  if (!process.stdout.isTTY) {
+    process.stdout.write(prompt.content.trimEnd() + "\n");
+    return;
+  }
+  const meta = metaFor(prompt);
+  const body = prompt.description ? `${pc.dim(prompt.description)}\n\n${prompt.content}` : prompt.content;
+  process.stdout.write(detailView({ title: `${prompt.is_favorite ? "★ " : ""}${prompt.title}`, meta, body }) + "\n");
+  // Hint only for numbered refs; a picked or pasted id would make an unreadable command.
+  if (/^\d{1,3}$/.test(ref)) {
+    process.stderr.write(pc.dim(`copy: overlay prompt show ${ref} | pbcopy · optimize: overlay prompt show ${ref} | overlay prompt\n`));
+  }
 }
 
 export async function commandPromptShow(ref: string, options: { json?: boolean }): Promise<void> {
-  await printPrompt(await resolvePromptRef(ref), options.json);
-}
-
-function isPromptExit(error: unknown): boolean {
-  return error instanceof Error && error.name === "ExitPromptError";
+  await printPrompt(ref, await resolvePromptRef(ref), options.json);
 }
 
 /** Fuzzy-pick a saved prompt; its content goes to stdout, the picker to stderr. */
 export async function commandPromptPick(options: { all?: boolean; json?: boolean }): Promise<void> {
-  if (!process.stdin.isTTY || !process.stderr.isTTY) {
-    process.exitCode = 2;
-    throw new Error("pick needs a terminal. In scripts use: overlay prompt list | fzf");
-  }
+  requirePickerTerminal("overlay prompt list");
   const started = Date.now();
   const { prompts } = await fetchPrompts(options.all);
   if (prompts.length === 0) {
     process.stderr.write("No saved prompts yet — create one on overlay.one/prompts.\n");
     return;
   }
-  const width = terminalWidth();
-  const haystack = (prompt: SavedPrompt) =>
-    `${prompt.title} ${prompt.category ?? ""} ${prompt.description ?? ""} ${prompt.content}`.toLowerCase();
-  try {
-    const promptId = await search(
-      {
-        message: `Pick a prompt ${pc.dim(`· ${prompts.length} · ${seconds(Date.now() - started)}`)}`,
-        pageSize: 10,
-        source: (term) => {
-          const words = (term ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-          return prompts
-            .filter((prompt) => words.every((word) => haystack(prompt).includes(word)))
-            .map((prompt) => ({
-              name: `${prompt.is_favorite ? "★ " : ""}${truncateToWidth(flat(prompt.title) || "(untitled)", width - 8)}`,
-              value: prompt.prompt_id,
-              description: truncateToWidth(flat(prompt.description || prompt.content), width - 4),
-            }));
-        },
-        theme: {
-          prefix: { idle: pc.cyan("◆"), done: symbols.ok() },
-          style: { highlight: (text: string) => pc.cyan(text) },
-        },
-      },
-      { output: process.stderr, clearPromptOnDone: true },
-    );
-    await printPrompt(promptId, options.json);
-  } catch (error) {
-    if (!isPromptExit(error)) throw error;
-    process.exitCode = 130;
-  }
+  const picked = await pickOne(
+    `Pick a prompt ${pc.dim(`· ${prompts.length} · ${seconds(Date.now() - started)}`)}`,
+    prompts.map((prompt) => ({
+      value: prompt.prompt_id,
+      title: prompt.title,
+      description: prompt.description || prompt.content,
+      starred: Boolean(prompt.is_favorite),
+      haystack: `${prompt.category ?? ""} ${prompt.content}`,
+    })),
+  );
+  if (picked) await printPrompt(picked, picked, options.json);
 }

@@ -17,10 +17,11 @@ import {
 } from "./commands.js";
 import { commandPrompt } from "./prompt.js";
 import { commandPromptList, commandPromptPick, commandPromptShow } from "./prompt-library.js";
+import { commandNoteAdd, commandNoteList, commandNotePick, commandNoteShow } from "./notes.js";
 import { markFrame, symbols } from "./ui.js";
 
 const program = new Command("overlay")
-  .description("Move files in and out of your memory, search it, and work with prompts.")
+  .description("Save notes and files to your memory, search it, and work with prompts.")
   .version("0.2.0")
   .configureOutput({
     writeErr: (text) => process.stderr.write(text),
@@ -34,6 +35,7 @@ Examples:
   ${pc.cyan("overlay search")} "prompt caching"           search everything you saved
   ${pc.cyan("pbpaste | overlay prompt | pbcopy")}         rewrite a prompt in place
   ${pc.cyan("overlay prompt pick | pbcopy")}              copy a saved prompt
+  ${pc.cyan("pbpaste | overlay note add")}                save the clipboard as a note
 
 Docs: https://github.com/overlay-one/cli`,
   );
@@ -91,6 +93,42 @@ program
   .option("--limit <n>", "max results", "30")
   .option("--json", "print the raw list response")
   .action(run(commandFiles));
+
+const note = program
+  .command("note")
+  .helpGroup("Memory:")
+  .description("Write, list, show, or pick your notes");
+
+note
+  .command("add")
+  .description("Save a note from text or stdin")
+  .argument("[text...]", "the note text, or - / nothing to read stdin")
+  .option("--title <title>", "title (default: the first line)")
+  .option("--json", "print the created note")
+  .action(run(commandNoteAdd));
+
+note
+  .command("list")
+  .description("List your notes, most recently updated first")
+  .option("--archived", "list archived notes instead")
+  .option("--limit <n>", "max rows", "30")
+  .option("--json", "print the raw list response")
+  .option("--tsv", "one tab-separated line per note (default when piped)")
+  .action(run(commandNoteList));
+
+note
+  .command("show")
+  .description("Show a note; prints raw Markdown when piped")
+  .argument("<ref>", "a number from the last note list, or a note id")
+  .option("--json", "print the raw note record")
+  .action(run(commandNoteShow));
+
+note
+  .command("pick")
+  .description("Fuzzy-pick a note and show it")
+  .option("--archived", "pick from archived notes")
+  .option("--json", "print the raw note record")
+  .action(run(commandNotePick));
 
 const prompt = program
   .command("prompt")

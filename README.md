@@ -14,6 +14,9 @@ cat journal.md | overlay upload - --name journal.md
 overlay search "prompt caching"        # hybrid search over everything
 overlay files                          # recent sources
 overlay download 2 --annotated        # row 2 of the last listing; PDFs keep your highlights
+pbpaste | overlay note add             # save the clipboard as a note
+overlay note list                      # your notes, newest first
+overlay note show 1                    # rendered in a terminal; raw Markdown when piped
 pbpaste | overlay prompt | pbcopy      # rewrite a prompt to ask for more ambitious work
 overlay prompt list                    # your saved prompts
 ```
@@ -58,6 +61,9 @@ the id and preview with `show`:
 overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
   --preview 'overlay prompt show {1}' --preview-window wrap \
   | cut -f1 | xargs overlay prompt show | pbcopy
+
+# notes work the same way
+overlay note list | fzf --delimiter '\t' --with-nth 2.. --preview 'overlay note show {1}'
 
 # or bind it as a shell function (add to ~/.zshrc)
 op() {
