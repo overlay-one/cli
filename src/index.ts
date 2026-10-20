@@ -107,6 +107,7 @@ prompt
   .option("--all", "include public prompts from other people")
   .option("--limit <n>", "max rows", "30")
   .option("--json", "print the raw list response")
+  .option("--tsv", "one tab-separated line per prompt (default when piped)")
   .action(run(commandPromptList));
 
 prompt

@@ -42,6 +42,29 @@ overlay prompt list                    # saved prompts from overlay.one/prompts
 overlay prompt show 2 | overlay prompt # optimize a saved prompt
 ```
 
+### With fzf
+
+Piped, `overlay prompt list` prints one tab-separated line per prompt
+(`id`, title, category, preview); `--tsv` forces it in a terminal. Hide
+the id and preview with `show`:
+
+```sh
+# pick a saved prompt, copy its content
+overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
+  --preview 'overlay prompt show {1}' --preview-window wrap \
+  | cut -f1 | xargs overlay prompt show | pbcopy
+
+# or bind it as a shell function (add to ~/.zshrc)
+op() {
+  local id
+  id=$(overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
+    --preview 'overlay prompt show {1}' --preview-window wrap | cut -f1) || return
+  overlay prompt show "$id"
+}
+op | pbcopy                # copy the picked prompt
+op | overlay prompt        # optimize the picked prompt
+```
+
 ## Auth
 
 `overlay login` opens `overlay.one/cli-auth`; you click **Authorize**

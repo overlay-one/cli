@@ -66,10 +66,19 @@ function printPrompt(index: number, prompt: SavedPrompt): void {
   process.stdout.write("\n");
 }
 
+// One prompt per line, tab-separated: id, title, category, preview. For fzf and
+// other line tools; tabs and newlines inside fields are flattened to spaces.
+function tsvLine(prompt: SavedPrompt): string {
+  const flat = (text: string | null) => (text ?? "").replace(/\s+/g, " ").trim();
+  const preview = flat(prompt.description || prompt.content).slice(0, 200);
+  return [prompt.prompt_id, flat(prompt.title) || "(untitled)", flat(prompt.category), preview].join("\t");
+}
+
 export async function commandPromptList(options: {
   all?: boolean;
   limit: string;
   json?: boolean;
+  tsv?: boolean;
 }): Promise<void> {
   const result = await apiJson<{ prompts: SavedPrompt[] }>(
     `/api/prompts?public=${options.all ? "true" : "false"}`,
@@ -79,6 +88,11 @@ export async function commandPromptList(options: {
 
   if (options.json) {
     process.stdout.write(JSON.stringify({ prompts }) + "\n");
+    return;
+  }
+  if (options.tsv || !process.stdout.isTTY) {
+    for (const prompt of prompts) process.stdout.write(tsvLine(prompt) + "\n");
+    await rememberPrompts(prompts);
     return;
   }
   if (prompts.length === 0) {
