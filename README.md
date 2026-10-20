@@ -46,6 +46,22 @@ overlay prompt show 2 | overlay prompt # optimize a saved prompt
 overlay prompt pick | pbcopy           # fuzzy-pick a saved prompt, copy its content
 ```
 
+### Opening things
+
+Titles in lists and `show` views are clickable links in terminals that
+support them (iTerm2, WezTerm, Kitty, Ghostty, VS Code); elsewhere they are
+plain text. In any terminal, `open` takes the row number:
+
+```sh
+overlay search "context engineering"
+overlay open 2                # open result 2 on overlay.one
+overlay open 2 --source       # a saved page's original address
+overlay note open 1           # a note
+overlay prompt open 3         # a saved prompt
+```
+
+The URL is also printed to stdout, so `overlay note open 1 | pbcopy` copies it.
+
 While a command waits on the network, the Overlay mark animates on
 stderr with the elapsed time. Set `OVERLAY_NO_ANIMATION=1` (or `NO_COLOR`)
 to turn it off; it is always off in pipes and CI.

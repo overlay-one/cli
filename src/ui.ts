@@ -11,6 +11,7 @@ import { markedTerminal } from "marked-terminal";
 import ora from "ora";
 import pc from "picocolors";
 import stringWidth from "string-width";
+import terminalLink from "terminal-link";
 import wrapAnsi from "wrap-ansi";
 
 type ColorOption = { color?: boolean };
@@ -111,6 +112,11 @@ function hang(first: string, rest: string, text: string, width: number): string[
     .map((part, index) => (index === 0 ? first : rest) + part);
 }
 
+/** A clickable title in terminals that support OSC 8 links; plain text elsewhere. */
+export function linked(text: string, url: string | undefined): string {
+  return url ? terminalLink(text, url, { fallback: false }) : text;
+}
+
 export function heading(label: string): string {
   return pc.bold(label.toUpperCase());
 }
@@ -126,7 +132,7 @@ export function listHeader(label: string, count: number): string {
 }
 
 /** One ledger row: cyan number, bold title, right-aligned dim meta, dim snippet line. */
-export function ledgerRow(row: { index: number; title: string; meta: string[]; snippet?: string; mark?: string }): string {
+export function ledgerRow(row: { index: number; title: string; meta: string[]; snippet?: string; mark?: string; url?: string }): string {
   const width = terminalWidth();
   const number = String(row.index).padStart(2);
   const mark = row.mark ?? "";
@@ -134,7 +140,7 @@ export function ledgerRow(row: { index: number; title: string; meta: string[]; s
   const room = width - 4 - stringWidth(mark) - (meta ? stringWidth(meta) + 2 : 0);
   const title = truncateToWidth(row.title || "(untitled)", Math.max(12, room));
   const gap = Math.max(2, width - 4 - stringWidth(mark) - stringWidth(title) - stringWidth(meta));
-  const lines = [`${pc.cyan(number)}  ${mark}${pc.bold(title)}${meta ? " ".repeat(gap) + pc.dim(meta) : ""}`];
+  const lines = [`${pc.cyan(number)}  ${mark}${linked(pc.bold(title), row.url)}${meta ? " ".repeat(gap) + pc.dim(meta) : ""}`];
   const snippet = row.snippet?.replace(/\s+/g, " ").trim();
   if (snippet) lines.push(`    ${pc.dim(truncateToWidth(snippet, width - 4))}`);
   return lines.join("\n") + "\n";
@@ -147,7 +153,7 @@ export function tsvLine(fields: Array<string | null | undefined>, maxFieldLength
 
 /** A `show` view: bold title with right-aligned dim meta, then the body between thin rules. */
 export function detailView(
-  view: { title: string; meta: string[]; body: string },
+  view: { title: string; meta: string[]; body: string; url?: string },
   width = terminalWidth(),
   options: ColorOption = {},
 ): string {
@@ -156,7 +162,7 @@ export function detailView(
   const title = truncateToWidth(view.title || "(untitled)", Math.max(12, width - (meta ? stringWidth(meta) + 2 : 0)));
   const gap = Math.max(2, width - stringWidth(title) - stringWidth(meta));
   const line = c.dim("─".repeat(width));
-  const header = `${c.bold(title)}${meta ? " ".repeat(gap) + c.dim(meta) : ""}`;
+  const header = `${linked(c.bold(title), view.url)}${meta ? " ".repeat(gap) + c.dim(meta) : ""}`;
   return [header, line, view.body.replace(/\s+$/, ""), line].join("\n");
 }
 

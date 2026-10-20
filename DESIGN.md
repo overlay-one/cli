@@ -53,6 +53,9 @@ overlay prompt list                  # saved prompts (numbered ledger)
 overlay prompt show <ref>            # print one prompt's content to stdout
 overlay prompt pick                  # fuzzy-pick a saved prompt; content to stdout
 
+overlay open <ref>                   # open a search/files result in the browser
+    --source                         # a saved page's original address
+
 overlay files                        # recent file/image/webpage sources
     --kinds file,image,webpage
     --limit 30
@@ -79,6 +82,8 @@ UX rules:
   `TERM=dumb`. No progress percentages that aren't measured.
 - Interactive prompts only in `login` and `prompt pick` (@inquirer/search,
   drawn on stderr so stdout stays data).
+- Titles are OSC 8 hyperlinks (terminal-link) where the terminal supports
+  them, using the web app's own routes; `open <n>` covers every terminal.
 - Layout is column-correct (string-width, wrap-ansi) so CJK, Thai, and
   emoji titles align; Markdown renders via marked + marked-terminal.
 

@@ -10,6 +10,8 @@ import { join } from "node:path";
 import pc from "picocolors";
 
 import { apiJson } from "./api.js";
+import { notePath } from "./links.js";
+import { openUrl, webUrl } from "./open.js";
 import { pickOne, requirePickerTerminal } from "./picker.js";
 import { relativeTime } from "./render.js";
 import { detailView, ledgerRow, listHeader, renderMarkdown, seconds, terminalWidth, tsvLine, withActivity } from "./ui.js";
@@ -107,10 +109,11 @@ export async function commandNoteList(options: { archived?: boolean; limit: stri
     const mark = note.is_favorite ? `${pc.cyan("★")} ` : "  ";
     const body = preview(note);
     const snippet = body.startsWith(noteTitle(note)) ? body.slice(noteTitle(note).length).trim() : body;
-    process.stdout.write(ledgerRow({ index: index + 1, title: noteTitle(note), meta: metaFor(note), snippet, mark }) + "\n");
+    const url = webUrl(notePath(note.id));
+    process.stdout.write(ledgerRow({ index: index + 1, title: noteTitle(note), meta: metaFor(note), snippet, mark, url }) + "\n");
   });
   await rememberNotes(notes);
-  process.stderr.write(pc.dim("show one: overlay note show <number> · pick: overlay note pick\n"));
+  process.stderr.write(pc.dim("show: overlay note show <number> · open in browser: overlay note open <number> · pick: overlay note pick\n"));
 }
 
 async function printNote(ref: string, noteId: string, json?: boolean): Promise<void> {
@@ -127,8 +130,8 @@ async function printNote(ref: string, noteId: string, json?: boolean): Promise<v
   }
   const meta = metaFor(note);
   const body = [renderMarkdown(content || "_(empty note)_", terminalWidth() - 2), note.source_url ? `\n  ${pc.dim(note.source_url)}` : ""].join("");
-  process.stdout.write(detailView({ title: `${note.is_favorite ? "★ " : ""}${noteTitle(note)}`, meta, body }) + "\n");
-  if (/^\d{1,3}$/.test(ref)) process.stderr.write(pc.dim(`copy: overlay note show ${ref} | pbcopy\n`));
+  process.stdout.write(detailView({ title: `${note.is_favorite ? "★ " : ""}${noteTitle(note)}`, meta, body, url: webUrl(notePath(note.id)) }) + "\n");
+  if (/^\d{1,3}$/.test(ref)) process.stderr.write(pc.dim(`copy: overlay note show ${ref} | pbcopy · open in browser: overlay note open ${ref}\n`));
 }
 
 export async function commandNoteShow(ref: string, options: { json?: boolean }): Promise<void> {
@@ -172,7 +175,7 @@ export async function commandNoteAdd(words: string[], options: { title?: string;
     process.stdout.write(JSON.stringify(result) + "\n");
     return;
   }
-  process.stderr.write(pc.dim("open it: overlay note show 1\n"));
+  process.stderr.write(pc.dim("read it: overlay note show 1 · open in browser: overlay note open 1\n"));
 }
 
 export async function commandNotePick(options: { archived?: boolean; json?: boolean }): Promise<void> {
@@ -194,4 +197,10 @@ export async function commandNotePick(options: { archived?: boolean; json?: bool
     })),
   );
   if (picked) await printNote(picked, picked, options.json);
+}
+
+export async function commandNoteOpen(ref: string): Promise<void> {
+  const noteId = await resolveNoteRef(ref);
+  const { note } = await withActivity("Finding note", () => apiJson<{ note: Note }>(`/api/notes/${encodeURIComponent(noteId)}`));
+  openUrl(webUrl(notePath(note.id)), noteTitle(note));
 }

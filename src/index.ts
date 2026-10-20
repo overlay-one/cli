@@ -16,8 +16,9 @@ import {
   commandWhoami,
 } from "./commands.js";
 import { commandPrompt } from "./prompt.js";
-import { commandPromptList, commandPromptPick, commandPromptShow } from "./prompt-library.js";
-import { commandNoteAdd, commandNoteList, commandNotePick, commandNoteShow } from "./notes.js";
+import { commandPromptList, commandPromptOpen, commandPromptPick, commandPromptShow } from "./prompt-library.js";
+import { commandNoteAdd, commandNoteList, commandNoteOpen, commandNotePick, commandNoteShow } from "./notes.js";
+import { commandOpen } from "./open.js";
 import { markFrame, symbols } from "./ui.js";
 
 const program = new Command("overlay")
@@ -94,6 +95,14 @@ program
   .option("--json", "print the raw list response")
   .action(run(commandFiles));
 
+program
+  .command("open")
+  .helpGroup("Memory:")
+  .description("Open a search or files result on overlay.one in your browser")
+  .argument("<ref>", "a number from the last search/files listing, or a node id")
+  .option("--source", "open a saved web page's original address instead")
+  .action(run(commandOpen));
+
 const note = program
   .command("note")
   .helpGroup("Memory:")
@@ -122,6 +131,12 @@ note
   .argument("<ref>", "a number from the last note list, or a note id")
   .option("--json", "print the raw note record")
   .action(run(commandNoteShow));
+
+note
+  .command("open")
+  .description("Open a note on overlay.one in your browser")
+  .argument("<ref>", "a number from the last note list, or a note id")
+  .action(run(commandNoteOpen));
 
 note
   .command("pick")
@@ -160,6 +175,12 @@ prompt
   .argument("<ref>", "a number from the last prompt list, or a prompt id")
   .option("--json", "print the raw prompt record")
   .action(run(commandPromptShow));
+
+prompt
+  .command("open")
+  .description("Open a saved prompt on overlay.one in your browser")
+  .argument("<ref>", "a number from the last prompt list, or a prompt id")
+  .action(run(commandPromptOpen));
 
 prompt
   .command("pick")

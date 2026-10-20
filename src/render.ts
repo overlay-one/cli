@@ -6,6 +6,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { apiBaseUrl } from "./auth.js";
+import { nodePath } from "./links.js";
 import { ledgerRow } from "./ui.js";
 
 export type BrainNode = {
@@ -73,7 +75,8 @@ export function printRow(
   const snippet = options.snippet?.trim().replace(/\s+/g, " ");
   // Don't echo the title back as its own snippet.
   const keep = snippet && !title.startsWith(snippet.slice(0, 40)) ? snippet : undefined;
-  process.stdout.write(ledgerRow({ index, title, meta, snippet: keep }) + "\n");
+  const url = `${apiBaseUrl()}${nodePath(node)}`;
+  process.stdout.write(ledgerRow({ index, title, meta, snippet: keep, url }) + "\n");
 }
 
 // --- result cache: numbered rows → node ids for follow-up commands ---

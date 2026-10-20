@@ -182,7 +182,7 @@ export async function commandSearch(
   });
   await rememberResults(result.results.map((hit) => hit.node));
   process.stderr.write(
-    pc.dim(`open one with: overlay download <number> · ids: --json\n`),
+    pc.dim(`open in browser: overlay open <number> · download: overlay download <number>\n`),
   );
 }
 
@@ -215,7 +215,7 @@ export async function commandFiles(options: {
   });
   await rememberResults(result.nodes);
   process.stderr.write(
-    pc.dim(`download with: overlay download <number> · ids: --json\n`),
+    pc.dim(`open in browser: overlay open <number> · download: overlay download <number>\n`),
   );
 }
 

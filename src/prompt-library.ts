@@ -11,6 +11,8 @@ import pc from "picocolors";
 
 import { apiJson } from "./api.js";
 import { relativeTime } from "./render.js";
+import { promptPath } from "./links.js";
+import { openUrl, webUrl } from "./open.js";
 import { pickOne, requirePickerTerminal } from "./picker.js";
 import { detailView, ledgerRow, listHeader, seconds, tsvLine, withActivity } from "./ui.js";
 
@@ -104,10 +106,10 @@ export async function commandPromptList(options: {
   prompts.forEach((prompt, index) => {
     const mark = prompt.is_favorite ? `${pc.cyan("★")} ` : "  ";
     const snippet = prompt.description || prompt.content;
-    process.stdout.write(ledgerRow({ index: index + 1, title: prompt.title, meta: metaFor(prompt), snippet, mark }) + "\n");
+    process.stdout.write(ledgerRow({ index: index + 1, title: prompt.title, meta: metaFor(prompt), snippet, mark, url: webUrl(promptPath(prompt.prompt_id)) }) + "\n");
   });
   await rememberPrompts(prompts);
-  process.stderr.write(pc.dim(`show one: overlay prompt show <number> · pick: overlay prompt pick\n`));
+  process.stderr.write(pc.dim(`show: overlay prompt show <number> · open in browser: overlay prompt open <number> · pick: overlay prompt pick\n`));
 }
 
 async function printPrompt(ref: string, promptId: string, json?: boolean): Promise<void> {
@@ -125,7 +127,7 @@ async function printPrompt(ref: string, promptId: string, json?: boolean): Promi
   }
   const meta = metaFor(prompt);
   const body = prompt.description ? `${pc.dim(prompt.description)}\n\n${prompt.content}` : prompt.content;
-  process.stdout.write(detailView({ title: `${prompt.is_favorite ? "★ " : ""}${prompt.title}`, meta, body }) + "\n");
+  process.stdout.write(detailView({ title: `${prompt.is_favorite ? "★ " : ""}${prompt.title}`, meta, body, url: webUrl(promptPath(prompt.prompt_id)) }) + "\n");
   // Hint only for numbered refs; a picked or pasted id would make an unreadable command.
   if (/^\d{1,3}$/.test(ref)) {
     process.stderr.write(pc.dim(`copy: overlay prompt show ${ref} | pbcopy · optimize: overlay prompt show ${ref} | overlay prompt\n`));
@@ -156,4 +158,12 @@ export async function commandPromptPick(options: { all?: boolean; json?: boolean
     })),
   );
   if (picked) await printPrompt(picked, picked, options.json);
+}
+
+export async function commandPromptOpen(ref: string): Promise<void> {
+  const promptId = await resolvePromptRef(ref);
+  const { prompt } = await withActivity("Finding prompt", () =>
+    apiJson<{ prompt: SavedPrompt }>(`/api/prompts/${encodeURIComponent(promptId)}`),
+  );
+  openUrl(webUrl(promptPath(prompt.prompt_id)), prompt.title);
 }
