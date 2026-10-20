@@ -3,7 +3,11 @@
 One tool, one job: **move files in and out of the brain, and search it,
 from a terminal.** Not a staged v0 of something bigger — chat, export
 tooling, and objectives are explicitly out of scope; if they ever matter
-they are separate proposals.
+they are separate proposals. Two additions: `overlay prompt`, the web
+Prompts optimizer as a pipe filter (`pbpaste | overlay prompt | pbcopy`)
+plus saved prompts, and `overlay note`, quick capture and reading of notes
+(`pbpaste | overlay note add`). Editing notes is out of scope until it
+honors the web's conditional-write contract.
 
 The CLI is a fourth client (web, extension, iOS, **cli**) speaking the
 same Bearer-token API the extension and iOS already use. Zero agent
@@ -30,6 +34,29 @@ overlay search <query>               # hybrid search over the whole brain
     --limit 10
     --json
 
+overlay note add [text...]           # save a note; stdin when no text
+    --title <title>                  # default: the first line
+overlay note list                    # notes, most recently updated first
+    --archived · --limit 30 · --json · --tsv
+overlay note show <ref>              # rendered in a terminal, raw Markdown piped
+overlay note pick                    # fuzzy-pick a note and show it
+
+overlay prompt [optimize] [text...]  # optimize a prompt; stdin when no text
+    --context <text>                 # access, limits, audience
+    --model <name>                   # gemini-…, claude-…, gpt-…; server enforces plan access
+    --full                           # all sections as Markdown on stdout
+    --json                           # raw optimizer response
+    -q, --quiet                      # only the rewritten prompt
+overlay prompt list                  # saved prompts (numbered ledger)
+    --all                            # include public prompts
+    --limit 30
+    --json
+overlay prompt show <ref>            # print one prompt's content to stdout
+overlay prompt pick                  # fuzzy-pick a saved prompt; content to stdout
+
+overlay open <ref>                   # open a search/files result in the browser
+    --source                         # a saved page's original address
+
 overlay files                        # recent file/image/webpage sources
     --kinds file,image,webpage
     --limit 30
@@ -46,8 +73,22 @@ UX rules:
 - Exit codes: 0 ok, 1 API/network error, 2 usage error, 3 not logged in.
 - Errors go to stderr; data to stdout — `overlay search x --json | jq`
   must always work.
-- Color via picocolors (auto-disabled for pipes/NO_COLOR); no spinners,
-  no interactive prompts outside `login`. Pipes are the primary audience.
+- Color via picocolors (auto-disabled for pipes/NO_COLOR). Pipes are the
+  primary audience.
+- One animation: the Overlay mark (`━ ─ ─`, three layers, one lit, via
+  ora) while a command waits on the network, with measured elapsed time
+  after 1.5s and a `✓` summary line when it settles. It draws on stderr
+  only, and only when stderr (and, except for `prompt`, stdout) is a
+  terminal; off under `CI`, `NO_COLOR`, `OVERLAY_NO_ANIMATION`, or
+  `TERM=dumb`. No progress percentages that aren't measured.
+- Interactive prompts only in `login` and the `pick` commands
+  (@inquirer/search, drawn on stderr so stdout stays data).
+  `OVERLAY_PICKER=fzf` swaps in fzf with a `show` preview pane; when fzf is
+  missing, pick falls back to the built-in picker with a one-line notice.
+- Titles are OSC 8 hyperlinks (terminal-link) where the terminal supports
+  them, using the web app's own routes; `open <n>` covers every terminal.
+- Layout is column-correct (string-width, wrap-ansi) so CJK, Thai, and
+  emoji titles align; Markdown renders via marked + marked-terminal.
 
 ## Auth
 

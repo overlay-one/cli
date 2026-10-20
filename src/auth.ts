@@ -102,7 +102,7 @@ export async function refreshCredentials(
   return next;
 }
 
-function openBrowser(url: string): void {
+export function openBrowser(url: string): void {
   const command =
     process.platform === "darwin"
       ? "open"

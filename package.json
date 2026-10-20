@@ -1,6 +1,6 @@
 {
   "name": "@overlay-one/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Move files in and out of your Overlay brain, and search it, from a terminal.",
   "license": "MIT",
   "repository": {
@@ -16,19 +16,28 @@
     "dist"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.17"
   },
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "dev": "node --experimental-strip-types src/index.ts",
-    "smoke": "node dist/overlay.js --help >/dev/null && node dist/overlay.js search --help >/dev/null && echo smoke-ok"
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "smoke": "node dist/overlay.js --help >/dev/null && node dist/overlay.js search --help >/dev/null && node dist/overlay.js prompt --help >/dev/null && node dist/overlay.js prompt list --help >/dev/null && node dist/overlay.js --help | node -e \"let s='';process.stdin.on('data',d=>s+=d).on('end',()=>process.exit(s.includes(String.fromCharCode(27))?1:0))\" && echo smoke-ok"
   },
   "dependencies": {
+    "@inquirer/search": "4.3.5",
     "commander": "^14.0.0",
-    "picocolors": "^1.1.1"
+    "marked": "15.0.12",
+    "marked-terminal": "7.3.0",
+    "ora": "9.4.1",
+    "picocolors": "^1.1.1",
+    "string-width": "8.3.0",
+    "terminal-link": "5.0.0",
+    "wrap-ansi": "10.0.2"
   },
   "devDependencies": {
+    "@types/marked-terminal": "6.1.1",
     "@types/node": "^24.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0"

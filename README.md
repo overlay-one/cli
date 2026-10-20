@@ -14,6 +14,11 @@ cat journal.md | overlay upload - --name journal.md
 overlay search "prompt caching"        # hybrid search over everything
 overlay files                          # recent sources
 overlay download 2 --annotated        # row 2 of the last listing; PDFs keep your highlights
+pbpaste | overlay note add             # save the clipboard as a note
+overlay note list                      # your notes, newest first
+overlay note show 1                    # rendered in a terminal; raw Markdown when piped
+pbpaste | overlay prompt | pbcopy      # rewrite a prompt to ask for more ambitious work
+overlay prompt list                    # your saved prompts
 ```
 
 Human output is a numbered ledger — titles, kinds, ages; no UUIDs.
@@ -23,6 +28,72 @@ stdout, messages on stderr.
 
 ```sh
 overlay search "RAG decoding" --json | jq -r '.results[].node.id'
+```
+
+## Prompt optimizer
+
+`overlay prompt` sends a prompt through the same optimizer as the web
+Prompts editor. The rewritten prompt goes to stdout; the diagnosis,
+ladder, and deferred line go to stderr, so pipes get only the prompt.
+It runs on Overlay's Pro model and can take up to two minutes.
+
+```sh
+pbpaste | overlay prompt | pbcopy
+overlay prompt "Summarize this paper" --context "I have the PDF and 30 minutes"
+overlay prompt --full < draft.txt      # all four sections as Markdown
+overlay prompt --model claude-sonnet-5-5 < draft.txt  # pick the model (paid models need Pro)
+overlay prompt list                    # saved prompts from overlay.one/prompts
+overlay prompt show 2 | overlay prompt # optimize a saved prompt
+overlay prompt pick | pbcopy           # fuzzy-pick a saved prompt, copy its content
+```
+
+### Opening things
+
+Titles in lists and `show` views are clickable links in terminals that
+support them (iTerm2, WezTerm, Kitty, Ghostty, VS Code); elsewhere they are
+plain text. In any terminal, `open` takes the row number:
+
+```sh
+overlay search "context engineering"
+overlay open 2                # open result 2 on overlay.one
+overlay open 2 --source       # a saved page's original address
+overlay note open 1           # a note
+overlay prompt open 3         # a saved prompt
+```
+
+The URL is also printed to stdout, so `overlay note open 1 | pbcopy` copies it.
+
+While a command waits on the network, the Overlay mark animates on
+stderr with the elapsed time. Set `OVERLAY_NO_ANIMATION=1` (or `NO_COLOR`)
+to turn it off; it is always off in pipes and CI.
+
+### With fzf
+
+Piped, `overlay prompt list` prints one tab-separated line per prompt
+(`id`, title, category, preview); `--tsv` forces it in a terminal. Hide
+the id and preview with `show`:
+
+```sh
+# pick a saved prompt, copy its content
+overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
+  --preview 'overlay prompt show {1}' --preview-window wrap \
+  | cut -f1 | xargs overlay prompt show | pbcopy
+
+# notes work the same way
+overlay note list | fzf --delimiter '\t' --with-nth 2.. --preview 'overlay note show {1}'
+
+# or make every `pick` use fzf (add to ~/.zshrc); previews show the content
+export OVERLAY_PICKER=fzf
+
+# or bind it as a shell function (add to ~/.zshrc)
+op() {
+  local id
+  id=$(overlay prompt list | fzf --delimiter '\t' --with-nth 2.. \
+    --preview 'overlay prompt show {1}' --preview-window wrap | cut -f1) || return
+  overlay prompt show "$id"
+}
+op | pbcopy                # copy the picked prompt
+op | overlay prompt        # optimize the picked prompt
 ```
 
 ## Auth

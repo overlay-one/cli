@@ -23,6 +23,7 @@ import {
   resolveNodeRef,
   type BrainNode,
 } from "./render.js";
+import { seconds, symbols, withActivity } from "./ui.js";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -98,14 +99,13 @@ export async function commandUpload(
     form.set("original_name", filename);
     form.set("saved_from", "cli");
 
-    const result = await apiJson<{ node: BrainNode }>("/api/brain/ingest/file", {
-      method: "POST",
-      body: form,
-    });
+    const result = await withActivity(`Uploading ${filename}`, () =>
+      apiJson<{ node: BrainNode }>("/api/brain/ingest/file", { method: "POST", body: form }),
+    );
     created.push(result);
     if (!options.json) {
       process.stdout.write(
-        `${pc.green("✓")} ${pc.bold(nodeTitle(result.node))} ${pc.dim(
+        `${symbols.ok()} ${pc.bold(nodeTitle(result.node))} ${pc.dim(
           `· ${result.node.kind ?? "file"} · ${humanBytes(bytes.length)}`,
         )}\n`,
       );
@@ -133,11 +133,14 @@ export async function commandDownload(
     output = nodeTitle(detail.node).replace(/[/\\]/g, "_");
   }
   const servePath = `/api/brain/nodes/${encoded}/serve${options.annotated ? "?annotated=1" : ""}`;
-  const response = await apiFetch(servePath);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  await writeFile(output, bytes);
-  process.stdout.write(`${output}\n`);
-  process.stderr.write(pc.dim(`${pc.green("✓")} ${humanBytes(bytes.length)}\n`));
+  const target = output;
+  const bytes = await withActivity(`Downloading ${target}`, async () => {
+    const response = await apiFetch(servePath);
+    return Buffer.from(await response.arrayBuffer());
+  });
+  await writeFile(target, bytes);
+  process.stdout.write(`${target}\n`);
+  process.stderr.write(`${symbols.ok()} ${pc.dim(humanBytes(bytes.length))}\n`);
 }
 
 // --- search ---
@@ -151,14 +154,19 @@ export async function commandSearch(
     kinds: options.kinds ? options.kinds.split(",").map((kind) => kind.trim()) : [],
     limit: Number.parseInt(options.limit, 10) || 10,
   };
-  const result = await apiJson<{
-    results: Array<{ node: BrainNode; score: number; snippet?: string | null }>;
-    total: number;
-  }>("/api/brain/search", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const result = await withActivity(
+    "Searching your memory",
+    () =>
+      apiJson<{
+        results: Array<{ node: BrainNode; score: number; snippet?: string | null }>;
+        total: number;
+      }>("/api/brain/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    { done: (found, ms) => (options.json ? undefined : `${found.results.length} matches · ${seconds(ms)}`) },
+  );
 
   if (options.json) {
     process.stdout.write(JSON.stringify(result) + "\n");
@@ -174,7 +182,7 @@ export async function commandSearch(
   });
   await rememberResults(result.results.map((hit) => hit.node));
   process.stderr.write(
-    pc.dim(`open one with: overlay download <number> · ids: --json\n`),
+    pc.dim(`open in browser: overlay open <number> · download: overlay download <number>\n`),
   );
 }
 
@@ -187,8 +195,10 @@ export async function commandFiles(options: {
 }): Promise<void> {
   const kinds = encodeURIComponent(options.kinds);
   const limit = Number.parseInt(options.limit, 10) || 30;
-  const result = await apiJson<{ nodes: BrainNode[]; total: number }>(
-    `/api/brain/nodes?kinds=${kinds}&order=recent&limit=${limit}`,
+  const result = await withActivity(
+    "Loading recent sources",
+    () => apiJson<{ nodes: BrainNode[]; total: number }>(`/api/brain/nodes?kinds=${kinds}&order=recent&limit=${limit}`),
+    { done: (found, ms) => (options.json ? undefined : `${found.nodes.length} of ${found.total} sources · ${seconds(ms)}`) },
   );
 
   if (options.json) {
@@ -205,9 +215,7 @@ export async function commandFiles(options: {
   });
   await rememberResults(result.nodes);
   process.stderr.write(
-    pc.dim(
-      `${result.nodes.length} of ${result.total} · download with: overlay download <number>\n`,
-    ),
+    pc.dim(`open in browser: overlay open <number> · download: overlay download <number>\n`),
   );
 }
 
