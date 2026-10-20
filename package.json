@@ -22,7 +22,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "dev": "node --experimental-strip-types src/index.ts",
-    "smoke": "node dist/overlay.js --help >/dev/null && node dist/overlay.js search --help >/dev/null && node dist/overlay.js prompt --help >/dev/null && echo smoke-ok"
+    "smoke": "node dist/overlay.js --help >/dev/null && node dist/overlay.js search --help >/dev/null && node dist/overlay.js prompt --help >/dev/null && node dist/overlay.js prompt list --help >/dev/null && echo smoke-ok"
   },
   "dependencies": {
     "commander": "^14.0.0",

@@ -15,6 +15,7 @@ import {
   commandWhoami,
 } from "./commands.js";
 import { commandPrompt } from "./prompt.js";
+import { commandPromptList, commandPromptShow } from "./prompt-library.js";
 
 const program = new Command("overlay")
   .description("Your Overlay memory from the terminal: upload, download, search, prompt.")
@@ -86,8 +87,12 @@ program
   .option("--json", "print the raw list response")
   .action(run(commandFiles));
 
-program
+const prompt = program
   .command("prompt")
+  .description("Optimize a prompt (default), or list and show your saved prompts");
+
+prompt
+  .command("optimize", { isDefault: true })
   .description("Rewrite a prompt to ask for more ambitious work (reads stdin)")
   .argument("[prompt...]", "the prompt text, or - / nothing to read stdin")
   .option("--context <text>", "what the model can access, limits, who the result is for")
@@ -95,6 +100,21 @@ program
   .option("--json", "print the raw optimizer response")
   .option("-q, --quiet", "print only the rewritten prompt")
   .action(run(commandPrompt));
+
+prompt
+  .command("list")
+  .description("List your saved prompts")
+  .option("--all", "include public prompts from other people")
+  .option("--limit <n>", "max rows", "30")
+  .option("--json", "print the raw list response")
+  .action(run(commandPromptList));
+
+prompt
+  .command("show")
+  .description("Print a saved prompt's content (pipe it on)")
+  .argument("<ref>", "a number from the last prompt list, or a prompt id")
+  .option("--json", "print the raw prompt record")
+  .action(run(commandPromptShow));
 
 program.parseAsync().catch(() => {
   process.exitCode = 2;

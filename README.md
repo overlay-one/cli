@@ -15,6 +15,7 @@ overlay search "prompt caching"        # hybrid search over everything
 overlay files                          # recent sources
 overlay download 2 --annotated        # row 2 of the last listing; PDFs keep your highlights
 pbpaste | overlay prompt | pbcopy      # rewrite a prompt to ask for more ambitious work
+overlay prompt list                    # your saved prompts
 ```
 
 Human output is a numbered ledger — titles, kinds, ages; no UUIDs.
@@ -37,6 +38,8 @@ It runs on Overlay's Pro model and can take up to two minutes.
 pbpaste | overlay prompt | pbcopy
 overlay prompt "Summarize this paper" --context "I have the PDF and 30 minutes"
 overlay prompt --full < draft.txt      # all four sections as Markdown
+overlay prompt list                    # saved prompts from overlay.one/prompts
+overlay prompt show 2 | overlay prompt # optimize a saved prompt
 ```
 
 ## Auth

@@ -31,11 +31,16 @@ overlay search <query>               # hybrid search over the whole brain
     --limit 10
     --json
 
-overlay prompt [text...]             # optimize a prompt; stdin when no text
+overlay prompt [optimize] [text...]  # optimize a prompt; stdin when no text
     --context <text>                 # access, limits, audience
     --full                           # all sections as Markdown on stdout
     --json                           # raw optimizer response
     -q, --quiet                      # only the rewritten prompt
+overlay prompt list                  # saved prompts (numbered ledger)
+    --all                            # include public prompts
+    --limit 30
+    --json
+overlay prompt show <ref>            # print one prompt's content to stdout
 
 overlay files                        # recent file/image/webpage sources
     --kinds file,image,webpage
