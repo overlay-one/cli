@@ -43,6 +43,7 @@ overlay note pick                    # fuzzy-pick a note and show it
 
 overlay prompt [optimize] [text...]  # optimize a prompt; stdin when no text
     --context <text>                 # access, limits, audience
+    --model <name>                   # gemini-…, claude-…, gpt-…; server enforces plan access
     --full                           # all sections as Markdown on stdout
     --json                           # raw optimizer response
     -q, --quiet                      # only the rewritten prompt

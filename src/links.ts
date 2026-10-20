@@ -22,3 +22,12 @@ export function sourceUrl(node: LinkableNode): string | null {
   const candidate = payload["url"] ?? payload["source_url"];
   return typeof candidate === "string" && /^https?:\/\//i.test(candidate) ? candidate : null;
 }
+
+/** `--model` takes a bare name; the provider follows from its prefix, as in the web app's catalog. */
+export function modelFromName(name: string): { name: string; provider: "anthropic" | "openai" | "gemini" } | null {
+  const trimmed = name.trim();
+  if (/^claude-/i.test(trimmed)) return { name: trimmed, provider: "anthropic" };
+  if (/^(gpt-|o\d)/i.test(trimmed)) return { name: trimmed, provider: "openai" };
+  if (/^(models\/)?gemini-/i.test(trimmed)) return { name: trimmed, provider: "gemini" };
+  return null;
+}

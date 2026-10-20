@@ -41,6 +41,7 @@ It runs on Overlay's Pro model and can take up to two minutes.
 pbpaste | overlay prompt | pbcopy
 overlay prompt "Summarize this paper" --context "I have the PDF and 30 minutes"
 overlay prompt --full < draft.txt      # all four sections as Markdown
+overlay prompt --model claude-sonnet-5-5 < draft.txt  # pick the model (paid models need Pro)
 overlay prompt list                    # saved prompts from overlay.one/prompts
 overlay prompt show 2 | overlay prompt # optimize a saved prompt
 overlay prompt pick | pbcopy           # fuzzy-pick a saved prompt, copy its content

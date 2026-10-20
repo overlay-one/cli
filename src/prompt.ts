@@ -5,6 +5,7 @@
 import pc from "picocolors";
 
 import { ApiError, apiFetch } from "./api.js";
+import { modelFromName } from "./links.js";
 import { heading, renderMarkdown, rule, seconds, terminalWidth, withActivity } from "./ui.js";
 
 type OptimizerResult = {
@@ -35,11 +36,13 @@ async function readPrompt(words: string[]): Promise<string> {
   return readStdin();
 }
 
-async function optimize(prompt: string, context: string): Promise<OptimizerResult> {
+type Model = NonNullable<ReturnType<typeof modelFromName>>;
+
+async function optimize(prompt: string, context: string, model: Model | null): Promise<OptimizerResult> {
   const response = await apiFetch("/api/prompts/optimize", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content: prompt, context }),
+    body: JSON.stringify({ content: prompt, context, ...(model ? { model } : {}) }),
   });
   // The route streams heartbeat spaces before its JSON, so the status is always 200.
   const body = (await response.json()) as OptimizerResponse;
@@ -85,7 +88,7 @@ const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 export async function commandPrompt(
   argWords: string[],
-  options: { context?: string; full?: boolean; json?: boolean; quiet?: boolean },
+  options: { context?: string; model?: string; full?: boolean; json?: boolean; quiet?: boolean },
 ): Promise<void> {
   const prompt = (await readPrompt(argWords)).trim();
   if (!prompt) {
@@ -93,7 +96,13 @@ export async function commandPrompt(
     throw new Error("The prompt is empty.");
   }
 
-  const result = await withActivity("Optimizing", () => optimize(prompt, options.context ?? ""), {
+  const model = options.model ? modelFromName(options.model) : null;
+  if (options.model && !model) {
+    process.exitCode = 2;
+    throw new Error(`Unknown model "${options.model}". Use a name like gemini-4-argon, claude-sonnet-5-5 or gpt-6-luna.`);
+  }
+  const label = model ? `Optimizing with ${model.name}` : "Optimizing";
+  const result = await withActivity(label, () => optimize(prompt, options.context ?? "", model), {
     stderrOnly: true,
     fallback: options.quiet ? undefined : "Optimizing… this can take up to two minutes.",
     done: (optimized, ms) =>

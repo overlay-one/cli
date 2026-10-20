@@ -155,6 +155,7 @@ prompt
   .description("Rewrite a prompt to ask for more ambitious work (reads stdin)")
   .argument("[prompt...]", "the prompt text, or - / nothing to read stdin")
   .option("--context <text>", "what the model can access, limits, who the result is for")
+  .option("--model <name>", "model to run (default: Pro on paid plans, Flash otherwise)")
   .option("--full", "print diagnosis, ladder, rewrite, and deferred line as Markdown")
   .option("--json", "print the raw optimizer response")
   .option("-q, --quiet", "print only the rewritten prompt")

@@ -30,3 +30,13 @@ test("sourceUrl reads a saved page's original address, http(s) only", () => {
   assert.equal(sourceUrl({ id: ID, payload: { url: "javascript:alert(1)" } }), null);
   assert.equal(sourceUrl({ id: ID }), null);
 });
+
+import { modelFromName } from "../src/links.ts";
+
+test("modelFromName infers the provider from the model name", () => {
+  assert.deepEqual(modelFromName("claude-sonnet-5-5"), { name: "claude-sonnet-5-5", provider: "anthropic" });
+  assert.deepEqual(modelFromName("gpt-6-luna"), { name: "gpt-6-luna", provider: "openai" });
+  assert.deepEqual(modelFromName("gemini-4-argon"), { name: "gemini-4-argon", provider: "gemini" });
+  assert.deepEqual(modelFromName("models/gemini-3.8-flash"), { name: "models/gemini-3.8-flash", provider: "gemini" });
+  assert.equal(modelFromName("llama-3"), null);
+});
